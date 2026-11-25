@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Station Météo Pro | Telemetry Console</title>
+    <title>Station Météo Pro | Telemetry Console v3.0</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -90,24 +90,20 @@
             background: #06b6d4;
         }
 
-        /* Scanline visual effect overlay */
-        .scanline {
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0, 0, 0, 0.2) 50%,
-                rgba(0, 0, 0, 0.2)
-            );
-            background-size: 100% 4px;
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-once {
+            animation: spin-slow 0.6s ease-out;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between text-slate-200 antialiased selection:bg-cyan-500 selection:text-black">
 
     <!-- TOP TELEMETRY BAR -->
-    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+    <header class="border-b border-slate-800 bg-slate-950/85 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
             
             <!-- Logo / Title -->
             <div class="flex items-center space-x-3">
@@ -117,30 +113,43 @@
                 <div>
                     <div class="flex items-center space-x-2">
                         <span class="font-mono-tech font-bold tracking-wider text-sm sm:text-base text-white">METEO.TELEMETRY</span>
-                        <span class="px-1.5 py-0.5 text-[10px] font-mono-tech bg-cyan-950 border border-cyan-500/30 text-cyan-400 rounded">v2.5</span>
+                        <span class="px-1.5 py-0.5 text-[10px] font-mono-tech bg-cyan-950 border border-cyan-500/30 text-cyan-400 rounded">v3.0</span>
                     </div>
-                    <p class="text-xs text-slate-400 font-mono text-[11px] hidden sm:block">Station Météo Haute Précision • Open-Meteo Engine</p>
+                    <p class="text-xs text-slate-400 font-mono text-[11px] hidden sm:block">Station Météo & Qualité de l'Air • Open-Meteo</p>
                 </div>
             </div>
 
             <!-- Controls & Live Status -->
-            <div class="flex items-center space-x-3 sm:space-x-4">
+            <div class="flex items-center space-x-2 sm:space-x-3">
                 <!-- System Status Indicator -->
-                <div class="hidden md:flex items-center space-x-2 text-xs font-mono-tech bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-md">
-                    <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span class="text-slate-400">API: <span class="text-emerald-400">ONLINE</span></span>
-                    <span class="text-slate-600">|</span>
+                <div class="hidden lg:flex items-center space-x-2 text-xs font-mono-tech bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-md">
+                    <span id="api-status-dot" class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-slate-400">API: <span id="api-status-text" class="text-emerald-400">ONLINE</span></span>
+                    <span class="text-slate-700">|</span>
                     <span id="live-utc-time" class="text-slate-300">00:00:00 UTC</span>
                 </div>
 
+                <!-- Auto-Refresh Toggle -->
+                <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" title="Actualisation automatique toutes les 10 minutes" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/70 rounded-md font-mono-tech text-xs flex items-center space-x-1.5 transition cursor-pointer">
+                    <span id="auto-refresh-dot" class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                    <span class="hidden sm:inline text-slate-300">AUTO 10m</span>
+                </button>
+
+                <!-- Manual Refresh Button -->
+                <button id="manual-refresh-btn" onclick="refreshCurrentLocation()" title="Actualiser les données maintenant" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/70 hover:border-cyan-500 text-cyan-400 hover:text-cyan-300 rounded-md transition duration-200 flex items-center justify-center cursor-pointer">
+                    <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </button>
+
                 <!-- Unit Toggle (°C/°F) -->
                 <div class="flex bg-slate-900 border border-slate-800 p-0.5 rounded-md font-mono-tech text-xs">
-                    <button id="unit-c" onclick="setUnit('metric')" class="px-2.5 py-1 rounded text-cyan-400 bg-slate-800 font-bold transition">°C</button>
-                    <button id="unit-f" onclick="setUnit('imperial')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition">°F</button>
+                    <button id="unit-c" onclick="setUnit('metric')" class="px-2.5 py-1 rounded text-cyan-400 bg-slate-800 font-bold transition cursor-pointer">°C</button>
+                    <button id="unit-f" onclick="setUnit('imperial')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition cursor-pointer">°F</button>
                 </div>
 
                 <!-- Geolocation Button -->
-                <button onclick="getUserLocation()" title="Détecter ma position" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/70 hover:border-cyan-500 text-cyan-400 hover:text-cyan-300 rounded-md transition duration-200 flex items-center justify-center">
+                <button onclick="getUserLocation()" title="Détecter ma position GPS" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/70 hover:border-cyan-500 text-cyan-400 hover:text-cyan-300 rounded-md transition duration-200 flex items-center justify-center cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -154,7 +163,7 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full space-y-6 flex-grow">
         
         <!-- SEARCH & FAVORITES BAR -->
-        <section class="relative z-40">
+        <section id="search-section" class="relative z-40">
             <div class="tech-card rounded-xl p-3 sm:p-4">
                 <div class="relative">
                     <div class="flex items-center space-x-2">
@@ -165,19 +174,19 @@
                             <input 
                                 type="text" 
                                 id="search-input"
-                                placeholder="Rechercher une ville (ex: Saint-Quentin, Paris, Tokyo, New York)..." 
+                                placeholder="Rechercher une ville (ex: Saint-Quentin, Paris, Tokyo, Montréal)..." 
                                 class="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 font-mono-tech text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition duration-150"
                                 autocomplete="off"
                                 oninput="onSearchInput(this.value)"
                                 onkeydown="handleSearchKeydown(event)"
                             >
-                            <button id="clear-search-btn" onclick="clearSearch()" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white">
+                            <button id="clear-search-btn" onclick="clearSearch()" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white cursor-pointer">
                                 ✕
                             </button>
                         </div>
                         <button 
                             onclick="triggerSearchFromInput()"
-                            class="bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-mono-tech font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg transition duration-150 flex items-center space-x-1 shadow-lg shadow-cyan-950"
+                            class="bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-mono-tech font-bold text-xs sm:text-sm px-4 py-2.5 rounded-lg transition duration-150 flex items-center space-x-1 shadow-lg shadow-cyan-950 cursor-pointer"
                         >
                             <span>CHERCHER</span>
                         </button>
@@ -195,12 +204,15 @@
                     <div id="favorites-list" class="flex flex-wrap gap-1.5 items-center">
                         <!-- Populated dynamically -->
                     </div>
-                    <button onclick="toggleCurrentFavorite()" id="add-fav-btn" class="px-2 py-1 bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 rounded border border-dashed border-slate-700 transition flex items-center gap-1">
+                    <button onclick="toggleCurrentFavorite()" id="add-fav-btn" class="px-2 py-1 bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 rounded border border-dashed border-slate-700 transition flex items-center gap-1 cursor-pointer">
                         <span>+ Épingler cette ville</span>
                     </button>
                 </div>
             </div>
         </section>
+
+        <!-- SMART WEATHER ALERTS BANNER (Dynamic) -->
+        <section id="smart-alerts-container" class="hidden space-y-2"></section>
 
         <!-- TOAST / NOTIFICATION MESSAGES CONTAINER -->
         <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none"></div>
@@ -217,15 +229,18 @@
                     <!-- Left: Location & Time Specs -->
                     <div class="lg:col-span-7 space-y-4">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="px-2.5 py-1 bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-mono-tech text-xs rounded-md font-semibold tracking-wider flex items-center gap-1">
+                            <span class="px-2.5 py-1 bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-mono-tech text-xs rounded-md font-semibold tracking-wider flex items-center gap-1.5">
                                 <span class="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
                                 <span id="country-badge">FR</span>
                             </span>
                             <span id="coords-badge" class="px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 font-mono-tech text-xs rounded-md">
-                                LAT: 49.85° | LON: 3.28°
+                                LAT: 49.85° | LON: 3.29°
                             </span>
                             <span id="timezone-badge" class="px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 font-mono-tech text-xs rounded-md hidden sm:inline-block">
-                                UTC+1
+                                TZ: Europe/Paris
+                            </span>
+                            <span id="local-city-time-badge" class="px-2.5 py-1 bg-slate-900 border border-slate-800 text-cyan-300 font-mono-tech text-xs rounded-md">
+                                Heure locale : --:--
                             </span>
                         </div>
 
@@ -245,10 +260,10 @@
                             </div>
                             <div>
                                 <div id="condition-text" class="text-lg sm:text-xl font-bold text-slate-100">
-                                    Ciel dégagé
+                                    Chargement...
                                 </div>
-                                <div class="text-xs font-mono-tech text-slate-400 flex items-center gap-2">
-                                    <span>Mise à jour : <span id="last-update-time">--:--</span></span>
+                                <div class="text-xs font-mono-tech text-slate-400 flex flex-wrap items-center gap-2">
+                                    <span>Sync : <span id="last-update-time">--:--</span></span>
                                     <span>•</span>
                                     <span>Ressenti : <span id="feels-like-temp" class="text-cyan-400 font-bold">--°C</span></span>
                                 </div>
@@ -283,34 +298,38 @@
                 </div>
             </section>
 
-            <!-- 4 KEY TELEMETRY METRICS GRID -->
-            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- 5 KEY TELEMETRY METRICS GRID (Including Real-Time Air Quality) -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 
                 <!-- METRIC 1: WIND -->
-                <div class="tech-card tech-card-glow rounded-xl p-5 relative">
-                    <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
-                        <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
-                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                            Vent & Rafales
-                        </span>
-                        <span class="text-[10px] text-cyan-500/80 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30 font-mono-tech">SYS.WIND</span>
-                    </div>
-                    <div class="flex items-baseline justify-between font-mono-tech">
-                        <div>
-                            <span id="wind-speed" class="text-3xl font-extrabold text-white">--</span>
-                            <span id="wind-unit" class="text-xs text-cyan-400 ml-1">km/h</span>
+                <div class="tech-card tech-card-glow rounded-xl p-5 relative flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
+                            <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
+                                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                Vent
+                            </span>
+                            <span class="text-[10px] text-cyan-500/80 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-500/30 font-mono-tech">SYS.WIND</span>
                         </div>
-                        <div class="text-right">
-                            <span id="wind-dir-text" class="text-xs text-slate-300 font-bold block">N/A</span>
-                            <span id="wind-gusts" class="text-[11px] text-slate-400 block">Rafales: -- km/h</span>
+                        <div class="flex items-baseline justify-between font-mono-tech">
+                            <div>
+                                <span id="wind-speed" class="text-3xl font-extrabold text-white">--</span>
+                                <span id="wind-unit" class="text-xs text-cyan-400 ml-1">km/h</span>
+                            </div>
+                            <div class="text-right">
+                                <span id="wind-dir-text" class="text-xs text-slate-300 font-bold block">N/A</span>
+                                <span id="wind-gusts" class="text-[11px] text-slate-400 block">Raf: --</span>
+                            </div>
                         </div>
                     </div>
                     <!-- Wind Direction Indicator -->
                     <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono-tech text-slate-400">
-                        <span>Cap boussole</span>
+                        <span>Provenance</span>
                         <div class="flex items-center space-x-2">
-                            <div id="wind-arrow" class="w-5 h-5 flex items-center justify-center transition-transform duration-500 text-cyan-400 font-bold" style="transform: rotate(0deg)">
-                                ⬆
+                            <div id="wind-arrow" class="w-5 h-5 flex items-center justify-center transition-transform duration-500 text-cyan-400" style="transform: rotate(0deg)">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+                                </svg>
                             </div>
                             <span id="wind-degree" class="text-slate-200 font-bold">0°</span>
                         </div>
@@ -318,22 +337,24 @@
                 </div>
 
                 <!-- METRIC 2: HUMIDITY & DEW POINT -->
-                <div class="tech-card tech-card-glow rounded-xl p-5 relative">
-                    <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
-                        <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
-                            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.11a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                            Humidité
-                        </span>
-                        <span class="text-[10px] text-blue-500/80 bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-500/30 font-mono-tech">SYS.HUM</span>
-                    </div>
-                    <div class="flex items-baseline justify-between font-mono-tech">
-                        <div>
-                            <span id="humidity" class="text-3xl font-extrabold text-white">--</span>
-                            <span class="text-xs text-blue-400 ml-1">%</span>
+                <div class="tech-card tech-card-glow rounded-xl p-5 relative flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
+                            <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
+                                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.11a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                                Humidité
+                            </span>
+                            <span class="text-[10px] text-blue-500/80 bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-500/30 font-mono-tech">SYS.HUM</span>
                         </div>
-                        <div class="text-right">
-                            <span id="dew-point" class="text-xs text-slate-300 font-bold block">Pt rosée: --°</span>
-                            <span id="humidity-status" class="text-[11px] text-emerald-400 block">Confortable</span>
+                        <div class="flex items-baseline justify-between font-mono-tech">
+                            <div>
+                                <span id="humidity" class="text-3xl font-extrabold text-white">--</span>
+                                <span class="text-xs text-blue-400 ml-1">%</span>
+                            </div>
+                            <div class="text-right">
+                                <span id="dew-point" class="text-xs text-slate-300 font-bold block">Rosée: --°</span>
+                                <span id="humidity-status" class="text-[11px] text-emerald-400 block">Confortable</span>
+                            </div>
                         </div>
                     </div>
                     <!-- Progress Bar -->
@@ -345,53 +366,84 @@
                 </div>
 
                 <!-- METRIC 3: UV INDEX & PRESSURE -->
-                <div class="tech-card tech-card-glow rounded-xl p-5 relative">
-                    <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
-                        <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
-                            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                            UV & Pression
-                        </span>
-                        <span class="text-[10px] text-amber-500/80 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30 font-mono-tech">SYS.RAD</span>
-                    </div>
-                    <div class="flex items-baseline justify-between font-mono-tech">
-                        <div>
-                            <span id="uv-index" class="text-3xl font-extrabold text-white">--</span>
-                            <span class="text-xs text-amber-400 ml-1">UV</span>
+                <div class="tech-card tech-card-glow rounded-xl p-5 relative flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
+                            <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
+                                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                UV & Pression
+                            </span>
+                            <span class="text-[10px] text-amber-500/80 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30 font-mono-tech">SYS.RAD</span>
                         </div>
-                        <div class="text-right">
-                            <span id="pressure" class="text-xs text-slate-300 font-bold block">-- hPa</span>
-                            <span id="uv-status" class="text-[11px] text-amber-400 block">Faible</span>
+                        <div class="flex items-baseline justify-between font-mono-tech">
+                            <div>
+                                <span id="uv-index" class="text-3xl font-extrabold text-white">--</span>
+                                <span class="text-xs text-amber-400 ml-1">UV</span>
+                            </div>
+                            <div class="text-right">
+                                <span id="pressure" class="text-xs text-slate-300 font-bold block">-- hPa</span>
+                                <span id="uv-status" class="text-[11px] text-amber-400 block">Faible</span>
+                            </div>
                         </div>
                     </div>
                     <!-- Pressure Trend -->
                     <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono-tech text-slate-400">
-                        <span>Pression surf.</span>
-                        <span id="pressure-status" class="text-slate-200 font-bold">Normale (1013)</span>
+                        <span>Baromètre</span>
+                        <span id="pressure-status" class="text-slate-200 font-bold">1013 hPa</span>
                     </div>
                 </div>
 
                 <!-- METRIC 4: PRECIPITATION & SUNRISE/SET -->
-                <div class="tech-card tech-card-glow rounded-xl p-5 relative">
-                    <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
-                        <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
-                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                            Précip. & Soleil
-                        </span>
-                        <span class="text-[10px] text-indigo-500/80 bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-500/30 font-mono-tech">SYS.PREC</span>
-                    </div>
-                    <div class="flex items-baseline justify-between font-mono-tech">
-                        <div>
-                            <span id="precip-sum" class="text-3xl font-extrabold text-white">--</span>
-                            <span class="text-xs text-indigo-400 ml-1">mm</span>
+                <div class="tech-card tech-card-glow rounded-xl p-5 relative flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
+                            <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
+                                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                                Précip. & Soleil
+                            </span>
+                            <span class="text-[10px] text-indigo-500/80 bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-500/30 font-mono-tech">SYS.PREC</span>
                         </div>
-                        <div class="text-right">
-                            <span id="sunrise-time" class="text-[11px] text-amber-300 block">🌅 --:--</span>
-                            <span id="sunset-time" class="text-[11px] text-indigo-300 block">🌇 --:--</span>
+                        <div class="flex items-baseline justify-between font-mono-tech">
+                            <div>
+                                <span id="precip-sum" class="text-3xl font-extrabold text-white">--</span>
+                                <span class="text-xs text-indigo-400 ml-1">mm</span>
+                            </div>
+                            <div class="text-right">
+                                <span id="sunrise-time" class="text-[11px] text-amber-300 block">🌅 --:--</span>
+                                <span id="sunset-time" class="text-[11px] text-indigo-300 block">🌇 --:--</span>
+                            </div>
                         </div>
                     </div>
                     <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono-tech text-slate-400">
-                        <span>Cumul du jour</span>
-                        <span id="precip-status" class="text-slate-200 font-bold">Aucune pluie</span>
+                        <span>Cumul 24h</span>
+                        <span id="precip-status" class="text-slate-200 font-bold">Sec</span>
+                    </div>
+                </div>
+
+                <!-- METRIC 5: AIR QUALITY INDEX (NEW) -->
+                <div class="tech-card tech-card-glow rounded-xl p-5 relative flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+                    <div>
+                        <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-3">
+                            <span class="flex items-center gap-1.5 font-bold uppercase tracking-wider text-slate-300">
+                                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+                                Qualité Air
+                            </span>
+                            <span class="text-[10px] text-emerald-500/80 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30 font-mono-tech">SYS.AQI</span>
+                        </div>
+                        <div class="flex items-baseline justify-between font-mono-tech">
+                            <div>
+                                <span id="aqi-value" class="text-3xl font-extrabold text-white">--</span>
+                                <span class="text-xs text-emerald-400 ml-1">EAQI</span>
+                            </div>
+                            <div class="text-right">
+                                <span id="pm25-value" class="text-[11px] text-slate-300 font-bold block">PM2.5: --</span>
+                                <span id="pm10-value" class="text-[11px] text-slate-400 block">PM10: --</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono-tech text-slate-400">
+                        <span>Indice EU</span>
+                        <span id="aqi-status" class="text-emerald-400 font-bold">Analyse...</span>
                     </div>
                 </div>
 
@@ -399,21 +451,36 @@
 
             <!-- HOURLY TELEMETRY CHART & HORIZONTAL TRACK -->
             <section class="tech-card rounded-xl p-5 sm:p-6 space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
                     <div class="flex items-center space-x-2">
                         <span class="text-cyan-400 font-mono-tech">📈</span>
                         <h2 class="font-mono-tech text-sm sm:text-base font-bold text-slate-100 uppercase tracking-wider">
                             Prévisions Horaires (Prochaines 24 Heures)
                         </h2>
                     </div>
-                    <div class="flex items-center space-x-3 text-xs font-mono-tech">
-                        <span class="flex items-center gap-1.5 text-cyan-400">
-                            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> Température
-                        </span>
-                        <span class="flex items-center gap-1.5 text-blue-400">
-                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500/40 border border-blue-400 inline-block"></span> Pluie (%)
-                        </span>
+
+                    <!-- Multi-Mode Chart Selector -->
+                    <div class="flex flex-wrap items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800 font-mono-tech text-xs">
+                        <button id="chart-mode-temp" onclick="setChartMode('temp')" class="px-3 py-1.5 rounded-md bg-cyan-950 text-cyan-400 border border-cyan-500/40 font-semibold transition cursor-pointer">
+                            Temp. & Pluie
+                        </button>
+                        <button id="chart-mode-wind" onclick="setChartMode('wind')" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition cursor-pointer">
+                            Vent & Rafales
+                        </button>
+                        <button id="chart-mode-hum" onclick="setChartMode('hum')" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition cursor-pointer">
+                            Humidité & UV
+                        </button>
                     </div>
+                </div>
+
+                <!-- Dynamic Legend -->
+                <div id="chart-legend" class="flex items-center justify-end space-x-4 text-xs font-mono-tech">
+                    <span class="flex items-center gap-1.5 text-cyan-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> Température
+                    </span>
+                    <span class="flex items-center gap-1.5 text-blue-400">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500/40 border border-blue-400 inline-block"></span> Risque Pluie (%)
+                    </span>
                 </div>
 
                 <!-- Chart Container -->
@@ -446,19 +513,19 @@
                 </div>
             </section>
 
-            <!-- DEV TOOLS / RAW JSON INSPECTOR (ENGINEER FOOTPRINT) -->
+            <!-- DEV TOOLS / RAW JSON INSPECTOR -->
             <section class="tech-card rounded-xl p-5 space-y-3">
                 <div class="flex items-center justify-between cursor-pointer" onclick="toggleJsonInspector()">
                     <div class="flex items-center space-x-2 text-xs font-mono-tech text-slate-400 hover:text-cyan-400 transition">
                         <span>⚙️</span>
-                        <span class="font-bold uppercase tracking-wider">Inspecteur de Télémetrie Brut (Open-Meteo JSON)</span>
+                        <span class="font-bold uppercase tracking-wider">Inspecteur de Télémetrie Brut (JSON)</span>
                     </div>
                     <span id="json-toggle-icon" class="text-xs font-mono-tech text-slate-500">[ + DÉPLOYER ]</span>
                 </div>
                 <div id="json-inspector-body" class="hidden pt-3 border-t border-slate-800">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-[11px] font-mono-tech text-slate-400">Endpoint Endpoint URL actif :</span>
-                        <button onclick="copyCurrentApiUrl()" class="text-[11px] font-mono-tech text-cyan-400 hover:underline">Copier URL API</button>
+                        <span class="text-[11px] font-mono-tech text-slate-400">Endpoint API actif :</span>
+                        <button onclick="copyCurrentApiUrl()" class="text-[11px] font-mono-tech text-cyan-400 hover:underline cursor-pointer">Copier URL API</button>
                     </div>
                     <pre id="json-raw-output" class="bg-slate-950 p-4 rounded-lg border border-slate-800 text-[11px] font-mono-tech text-cyan-300 max-h-64 overflow-y-auto leading-relaxed"></pre>
                 </div>
@@ -471,10 +538,10 @@
     <footer class="border-t border-slate-900 bg-slate-950/90 py-4 px-4 sm:px-6 font-mono-tech text-xs text-slate-400 text-center">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
             <div>
-                Station Météo Technologique • Source de données : <a href="https://open-meteo.com/" target="_blank" class="text-cyan-400 hover:underline">Open-Meteo API</a> (Open License)
+                METEO.TELEMETRY v3.0 • Données : <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline">Open-Meteo Forecast & Air Quality API</a>
             </div>
             <div>
-                Saint-Quentin, FR par défaut • Thème Sombre Ingénieur
+                Saint-Quentin, FR par défaut • Console Haute Précision
             </div>
         </div>
     </footer>
@@ -490,7 +557,14 @@
             lat: 49.8486,
             lon: 3.2864,
             unit: 'metric', // 'metric' (°C, km/h) or 'imperial' (°F, mph)
+            chartMode: 'temp', // 'temp', 'wind', 'hum'
+            autoRefresh: true,
+            autoRefreshTimer: null,
             weatherData: null,
+            airQualityData: null,
+            currentApiUrl: '',
+            selectedAutocompleteIndex: -1,
+            lastAutocompleteResults: [],
             favorites: JSON.parse(localStorage.getItem('meteo_favs') || '["Saint-Quentin", "Paris", "Tokyo", "New York", "Lille"]')
         };
 
@@ -509,20 +583,20 @@
             51: { desc: "Bruine légère", icon: "🌧️" },
             53: { desc: "Bruine modérée", icon: "🌧️" },
             55: { desc: "Bruine dense", icon: "🌧️" },
-            56: { desc: "Bruine congelante légère", icon: "🌧️❄️" },
-            57: { desc: "Bruine congelante dense", icon: "🌧️❄️" },
+            56: { desc: "Bruine verglaçante légère", icon: "🌧️❄️" },
+            57: { desc: "Bruine verglaçante dense", icon: "🌧️❄️" },
             61: { desc: "Pluie faible", icon: "🌧️" },
             63: { desc: "Pluie modérée", icon: "🌧️" },
             65: { desc: "Pluie forte", icon: "🌧️" },
-            66: { desc: "Pluie congelante légère", icon: "🌧️❄️" },
-            67: { desc: "Pluie congelante forte", icon: "🌧️❄️" },
+            66: { desc: "Pluie verglaçante légère", icon: "🌧️❄️" },
+            67: { desc: "Pluie verglaçante forte", icon: "🌧️❄️" },
             71: { desc: "Neige faible", icon: "❄️" },
             73: { desc: "Neige modérée", icon: "❄️" },
             75: { desc: "Neige forte", icon: "❄️" },
             77: { desc: "Grains de neige", icon: "❄️" },
-            80: { desc: "Averses de pluie faibles", icon: "🌦️" },
-            81: { desc: "Averses de pluie modérées", icon: "🌦️" },
-            82: { desc: "Averses de pluie violentes", icon: "⛈️" },
+            80: { desc: "Averses faibles", icon: "🌦️" },
+            81: { desc: "Averses modérées", icon: "🌦️" },
+            82: { desc: "Averses violentes", icon: "⛈️" },
             85: { desc: "Averses de neige faibles", icon: "🌨️" },
             86: { desc: "Averses de neige fortes", icon: "🌨️" },
             95: { desc: "Orage modéré", icon: "🌩️" },
@@ -534,49 +608,144 @@
         window.addEventListener('DOMContentLoaded', () => {
             startClock();
             renderFavorites();
+            setupAutoRefresh();
             fetchWeatherData(state.lat, state.lon);
         });
 
-        // Clock Update
+        // Clock Update (UTC & Local city time)
         function startClock() {
             const updateTime = () => {
                 const now = new Date();
                 document.getElementById('live-utc-time').textContent = now.toISOString().substr(11, 8) + ' UTC';
+                
+                if (state.weatherData && state.weatherData.timezone) {
+                    try {
+                        const localTimeStr = now.toLocaleTimeString('fr-FR', {
+                            timeZone: state.weatherData.timezone,
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        document.getElementById('local-city-time-badge').textContent = `Heure locale : ${localTimeStr}`;
+                    } catch (e) {
+                        document.getElementById('local-city-time-badge').textContent = `Heure locale : --:--`;
+                    }
+                }
             };
             updateTime();
             setInterval(updateTime, 1000);
         }
 
-        // Fetch Weather Data from Open-Meteo
-        async function fetchWeatherData(lat, lon) {
+        // Auto-Refresh Management
+        function setupAutoRefresh() {
+            if (state.autoRefreshTimer) clearInterval(state.autoRefreshTimer);
+            if (state.autoRefresh) {
+                state.autoRefreshTimer = setInterval(() => {
+                    fetchWeatherData(state.lat, state.lon, true);
+                }, 10 * 60 * 1000); // 10 minutes
+            }
+        }
+
+        function toggleAutoRefresh() {
+            state.autoRefresh = !state.autoRefresh;
+            const dot = document.getElementById('auto-refresh-dot');
+            if (state.autoRefresh) {
+                dot.className = "h-2 w-2 rounded-full bg-emerald-400 animate-pulse";
+                setupAutoRefresh();
+                showToast("Actualisation automatique activée (10 min)", "success");
+            } else {
+                dot.className = "h-2 w-2 rounded-full bg-slate-500";
+                if (state.autoRefreshTimer) clearInterval(state.autoRefreshTimer);
+                showToast("Actualisation automatique désactivée", "info");
+            }
+        }
+
+        function refreshCurrentLocation() {
+            const icon = document.getElementById('refresh-icon');
+            icon.classList.remove('animate-spin-once');
+            void icon.offsetWidth; // Trigger reflow
+            icon.classList.add('animate-spin-once');
+            fetchWeatherData(state.lat, state.lon);
+        }
+
+        // Fetch Weather & Air Quality Data in Parallel
+        async function fetchWeatherData(lat, lon, silent = false) {
             try {
-                showToast("Chargement des télémetries...", "info");
+                if (!silent) showToast("Synchronisation des capteurs...", "info");
 
                 const tempUnitParam = state.unit === 'imperial' ? 'fahrenheit' : 'celsius';
                 const windUnitParam = state.unit === 'imperial' ? 'mph' : 'kmh';
 
-                const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index&hourly=temperature_2m,weather_code,precipitation_probability,relative_humidity_2m,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_sum&temperature_unit=${tempUnitParam}&wind_speed_unit=${windUnitParam}&timezone=auto`;
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index&hourly=temperature_2m,weather_code,precipitation_probability,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_sum&temperature_unit=${tempUnitParam}&wind_speed_unit=${windUnitParam}&timezone=auto`;
+                
+                const airQualityUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=european_aqi,pm10,pm2_5&timezone=auto`;
 
-                const res = await fetch(apiUrl);
-                if (!res.ok) throw new Error("Erreur de communication avec l'API Open-Meteo");
+                const [weatherRes, aqRes] = await Promise.all([
+                    fetch(weatherUrl),
+                    fetch(airQualityUrl).catch(() => null)
+                ]);
 
-                const data = await res.json();
-                state.weatherData = data;
-                state.currentApiUrl = apiUrl;
+                if (!weatherRes.ok) throw new Error("Erreur de communication avec Open-Meteo");
 
-                renderDashboard(data);
-                showToast(`Données mises à jour pour ${state.city}`, "success");
+                const weatherData = await weatherRes.json();
+                const aqData = (aqRes && aqRes.ok) ? await aqRes.json() : null;
+
+                state.weatherData = weatherData;
+                state.airQualityData = aqData;
+                state.currentApiUrl = weatherUrl;
+
+                setApiOnlineStatus(true);
+                renderDashboard(weatherData, aqData);
+                if (!silent) showToast(`Télémetrie à jour : ${state.city}`, "success");
             } catch (err) {
                 console.error(err);
+                setApiOnlineStatus(false);
                 showToast(`Erreur : ${err.message}`, "error");
             }
         }
 
+        function setApiOnlineStatus(isOnline) {
+            const dot = document.getElementById('api-status-dot');
+            const text = document.getElementById('api-status-text');
+            if (isOnline) {
+                dot.className = "h-2 w-2 rounded-full bg-emerald-400 animate-pulse";
+                text.className = "text-emerald-400";
+                text.textContent = "ONLINE";
+            } else {
+                dot.className = "h-2 w-2 rounded-full bg-rose-500";
+                text.className = "text-rose-400";
+                text.textContent = "OFFLINE";
+            }
+        }
+
+        // Extract exact next 24 hours starting from current local time of the target city
+        function getNext24HoursSlice(hourly, currentIsoTime) {
+            let startIndex = 0;
+            if (currentIsoTime && Array.isArray(hourly.time)) {
+                // currentIsoTime format: "2026-11-25T08:45" -> match "2026-11-25T08:00"
+                const currentHourPrefix = currentIsoTime.slice(0, 13);
+                const foundIdx = hourly.time.findIndex(t => t.startsWith(currentHourPrefix));
+                if (foundIdx !== -1) {
+                    startIndex = foundIdx;
+                }
+            }
+            const endIndex = Math.min(startIndex + 24, hourly.time.length);
+            return {
+                time: hourly.time.slice(startIndex, endIndex),
+                temperature_2m: hourly.temperature_2m.slice(startIndex, endIndex),
+                weather_code: hourly.weather_code.slice(startIndex, endIndex),
+                precipitation_probability: hourly.precipitation_probability.slice(startIndex, endIndex),
+                relative_humidity_2m: hourly.relative_humidity_2m.slice(startIndex, endIndex),
+                wind_speed_10m: hourly.wind_speed_10m.slice(startIndex, endIndex),
+                wind_gusts_10m: (hourly.wind_gusts_10m || []).slice(startIndex, endIndex),
+                uv_index: (hourly.uv_index || []).slice(startIndex, endIndex)
+            };
+        }
+
         // Render All Dashboard Components
-        function renderDashboard(data) {
+        function renderDashboard(data, aqData) {
             const current = data.current;
             const daily = data.daily;
-            const hourly = data.hourly;
+            const hourly24 = getNext24HoursSlice(data.hourly, current.time);
 
             // Unit Labels
             const tempSymbol = state.unit === 'imperial' ? '°F' : '°C';
@@ -587,7 +756,7 @@
             document.getElementById('city-subtitle').textContent = [state.admin, state.country].filter(Boolean).join(', ');
             document.getElementById('country-badge').textContent = state.countryCode || 'WORLD';
             document.getElementById('coords-badge').textContent = `LAT: ${data.latitude.toFixed(2)}° | LON: ${data.longitude.toFixed(2)}°`;
-            document.getElementById('timezone-badge').textContent = `TZ: ${data.timezone_abbreviation || data.timezone}`;
+            document.getElementById('timezone-badge').textContent = `TZ: ${data.timezone}`;
 
             // Main Temp
             document.getElementById('current-temp').textContent = Math.round(current.temperature_2m);
@@ -602,90 +771,299 @@
             document.getElementById('condition-text').textContent = codeInfo.desc;
             document.getElementById('last-update-time').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-            // Metric 1: Wind
+            // Metric 1: Wind (wind_direction_10m indicates where wind comes FROM; +180deg shows direction it blows TO)
             document.getElementById('wind-speed').textContent = Math.round(current.wind_speed_10m);
             document.getElementById('wind-unit').textContent = windSymbol;
-            document.getElementById('wind-gusts').textContent = `Rafales: ${Math.round(current.wind_gusts_10m)} ${windSymbol}`;
+            document.getElementById('wind-gusts').textContent = `Raf: ${Math.round(current.wind_gusts_10m)} ${windSymbol}`;
             document.getElementById('wind-degree').textContent = `${current.wind_direction_10m}°`;
             document.getElementById('wind-dir-text').textContent = getWindDirectionText(current.wind_direction_10m);
-            document.getElementById('wind-arrow').style.transform = `rotate(${current.wind_direction_10m}deg)`;
+            document.getElementById('wind-arrow').style.transform = `rotate(${(current.wind_direction_10m + 180) % 360}deg)`;
 
-            // Metric 2: Humidity
+            // Metric 2: Humidity & Dew Point (unit-aware)
             document.getElementById('humidity').textContent = current.relative_humidity_2m;
             document.getElementById('humidity-bar').style.width = `${current.relative_humidity_2m}%`;
-            // Calculate approximate dew point
-            const dew = calculateDewPoint(current.temperature_2m, current.relative_humidity_2m);
-            document.getElementById('dew-point').textContent = `Pt rosée: ${Math.round(dew)}${tempSymbol}`;
+            const dew = calculateDewPoint(current.temperature_2m, current.relative_humidity_2m, state.unit);
+            document.getElementById('dew-point').textContent = `Rosée: ${Math.round(dew)}${tempSymbol}`;
             document.getElementById('humidity-status').textContent = getHumidityStatus(current.relative_humidity_2m);
 
             // Metric 3: UV & Pressure
-            document.getElementById('uv-index').textContent = current.uv_index !== null ? current.uv_index.toFixed(1) : (daily.uv_index_max[0] || 0).toFixed(1);
-            document.getElementById('uv-status').textContent = getUvStatus(current.uv_index || daily.uv_index_max[0] || 0);
+            const currentUv = current.uv_index !== null ? current.uv_index : (daily.uv_index_max[0] || 0);
+            document.getElementById('uv-index').textContent = currentUv.toFixed(1);
+            document.getElementById('uv-status').textContent = getUvStatus(currentUv);
             document.getElementById('pressure').textContent = `${Math.round(current.surface_pressure)} hPa`;
-            document.getElementById('pressure-status').textContent = current.surface_pressure > 1013 ? "Élevée (Anticyclone)" : "Basse (Dépression)";
+            document.getElementById('pressure-status').textContent = current.surface_pressure > 1013 ? "Anticyclone" : "Dépression";
 
             // Metric 4: Precipitation & Sun
             document.getElementById('precip-sum').textContent = (daily.precipitation_sum[0] || 0).toFixed(1);
-            document.getElementById('precip-status').textContent = daily.precipitation_sum[0] > 0 ? `${daily.precipitation_sum[0]} mm aujourd'hui` : "Sec / Sans pluie";
+            document.getElementById('precip-status').textContent = daily.precipitation_sum[0] > 0 ? `${daily.precipitation_sum[0]} mm prévus` : "Sec / Aucune";
             document.getElementById('sunrise-time').textContent = `🌅 ${formatTimeString(daily.sunrise[0])}`;
             document.getElementById('sunset-time').textContent = `🌇 ${formatTimeString(daily.sunset[0])}`;
 
-            // Render Charts & Hourly Track
-            renderHourlyChart(hourly, tempSymbol);
-            renderHourlyTrack(hourly, tempSymbol);
+            // Metric 5: Air Quality Index
+            let eAqi = null;
+            if (aqData && aqData.current) {
+                eAqi = aqData.current.european_aqi;
+                const pm25 = aqData.current.pm2_5;
+                const pm10 = aqData.current.pm10;
+                const aqiMeta = getAqiStatus(eAqi);
+
+                document.getElementById('aqi-value').textContent = eAqi !== null ? eAqi : '--';
+                document.getElementById('pm25-value').textContent = `PM2.5: ${pm25 !== null ? pm25.toFixed(1) : '--'} µg`;
+                document.getElementById('pm10-value').textContent = `PM10: ${pm10 !== null ? pm10.toFixed(1) : '--'} µg`;
+                const aqiStatusEl = document.getElementById('aqi-status');
+                aqiStatusEl.textContent = aqiMeta.label;
+                aqiStatusEl.className = `${aqiMeta.colorClass} font-bold`;
+            }
+
+            // Smart Dynamic Weather Alerts
+            renderSmartAlerts(current, daily, eAqi);
+
+            // Render Charts & Hourly Track (using synchronized next 24h)
+            renderHourlyChart(hourly24, tempSymbol, windSymbol);
+            renderHourlyTrack(hourly24, tempSymbol);
 
             // Render 7-Day Forecast
             renderDailyForecast(daily, tempSymbol);
 
             // JSON Raw inspector update
-            document.getElementById('json-raw-output').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('json-raw-output').textContent = JSON.stringify({ weather: data, air_quality: aqData }, null, 2);
 
             // Update Favorite Pin Button state
             updateFavButtonState();
         }
 
-        // Render Hourly Chart with Chart.js
-        function renderHourlyChart(hourly, tempSymbol) {
+        // Evaluate Thresholds for Smart Weather Alerts
+        function renderSmartAlerts(current, daily, eAqi) {
+            const container = document.getElementById('smart-alerts-container');
+            container.innerHTML = '';
+            const alerts = [];
+
+            const tempC = state.unit === 'imperial' ? (current.temperature_2m - 32) * 5 / 9 : current.temperature_2m;
+            const gustsKmh = state.unit === 'imperial' ? current.wind_gusts_10m * 1.60934 : current.wind_gusts_10m;
+            const uv = current.uv_index || 0;
+
+            if (tempC <= 0) {
+                alerts.push({
+                    type: 'cyan',
+                    icon: '❄️',
+                    title: 'ALERTE GEL / VERGLAS',
+                    msg: `Température négative détectée (${Math.round(current.temperature_2m)}${state.unit === 'imperial' ? '°F' : '°C'}). Risque de chaussée glissante.`
+                });
+            }
+            if (tempC >= 33) {
+                alerts.push({
+                    type: 'rose',
+                    icon: '🔥',
+                    title: 'ALERTE FORTE CHALEUR',
+                    msg: `Température élevée (${Math.round(current.temperature_2m)}${state.unit === 'imperial' ? '°F' : '°C'}). Hydratez-vous régulièrement.`
+                });
+            }
+            if (gustsKmh >= 60) {
+                alerts.push({
+                    type: 'amber',
+                    icon: '💨',
+                    title: 'VIGILANCE RAFALES DE VENT',
+                    msg: `Rafales soutenues mesurées à ${Math.round(current.wind_gusts_10m)} ${state.unit === 'imperial' ? 'mph' : 'km/h'}.`
+                });
+            }
+            if (uv >= 7) {
+                alerts.push({
+                    type: 'amber',
+                    icon: '☀️',
+                    title: 'INDICE UV ÉLEVÉ',
+                    msg: `Indice UV actuel de ${uv.toFixed(1)}. Protection solaire recommandée.`
+                });
+            }
+            if (eAqi !== null && eAqi >= 60) {
+                alerts.push({
+                    type: 'rose',
+                    icon: '😷',
+                    title: 'QUALITÉ DE L’AIR DÉGRADÉE',
+                    msg: `Indice européen AQI élevé (${eAqi}). Limitez les efforts physiques intenses en extérieur.`
+                });
+            }
+
+            if (alerts.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            alerts.forEach(a => {
+                const styles = {
+                    cyan: 'border-cyan-500/60 bg-cyan-950/40 text-cyan-200',
+                    amber: 'border-amber-500/60 bg-amber-950/40 text-amber-200',
+                    rose: 'border-rose-500/60 bg-rose-950/40 text-rose-200'
+                };
+                const div = document.createElement('div');
+                div.className = `rounded-xl border px-4 py-3 flex items-center space-x-3 font-mono-tech text-xs backdrop-blur-md ${styles[a.type]}`;
+                div.innerHTML = `
+                    <span class="text-xl flex-shrink-0">${a.icon}</span>
+                    <div>
+                        <span class="font-bold tracking-wider uppercase block">${a.title}</span>
+                        <span class="opacity-90">${a.msg}</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Switch Chart Mode
+        function setChartMode(mode) {
+            state.chartMode = mode;
+            ['temp', 'wind', 'hum'].forEach(m => {
+                const btn = document.getElementById(`chart-mode-${m}`);
+                if (m === mode) {
+                    btn.className = "px-3 py-1.5 rounded-md bg-cyan-950 text-cyan-400 border border-cyan-500/40 font-semibold transition cursor-pointer";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition cursor-pointer";
+                }
+            });
+
+            if (state.weatherData) {
+                const tempSymbol = state.unit === 'imperial' ? '°F' : '°C';
+                const windSymbol = state.unit === 'imperial' ? 'mph' : 'km/h';
+                const hourly24 = getNext24HoursSlice(state.weatherData.hourly, state.weatherData.current.time);
+                renderHourlyChart(hourly24, tempSymbol, windSymbol);
+            }
+        }
+
+        // Render Hourly Chart with Chart.js (Multi-Mode)
+        function renderHourlyChart(hourly, tempSymbol, windSymbol) {
             const ctx = document.getElementById('hourlyChart').getContext('2d');
+            const legendEl = document.getElementById('chart-legend');
             
-            // Next 24 hours slice
-            const labels = hourly.time.slice(0, 24).map(t => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
-            const temps = hourly.temperature_2m.slice(0, 24);
-            const precipProb = hourly.precipitation_probability.slice(0, 24);
+            const labels = hourly.time.map(t => t.slice(11, 16));
 
             if (hourlyChartInstance) {
                 hourlyChartInstance.destroy();
+            }
+
+            let datasets = [];
+            let yLeftOptions = {
+                type: 'linear',
+                position: 'left',
+                grid: { color: 'rgba(30, 41, 59, 0.5)' },
+                ticks: { color: '#06b6d4', font: { family: 'JetBrains Mono', size: 10 } }
+            };
+            let yRightOptions = {
+                type: 'linear',
+                position: 'right',
+                grid: { drawOnChartArea: false },
+                ticks: { color: '#3b82f6', font: { family: 'JetBrains Mono', size: 10 } }
+            };
+
+            if (state.chartMode === 'temp') {
+                legendEl.innerHTML = `
+                    <span class="flex items-center gap-1.5 text-cyan-400"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> Température (${tempSymbol})</span>
+                    <span class="flex items-center gap-1.5 text-blue-400"><span class="w-2.5 h-2.5 rounded-full bg-blue-500/40 border border-blue-400 inline-block"></span> Risque Pluie (%)</span>
+                `;
+                yRightOptions.min = 0;
+                yRightOptions.max = 100;
+                yRightOptions.ticks.callback = v => v + '%';
+
+                datasets = [
+                    {
+                        label: `Température (${tempSymbol})`,
+                        data: hourly.temperature_2m,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.15)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'yLeft',
+                        pointBackgroundColor: '#06b6d4',
+                        pointRadius: 3,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Risque de Pluie (%)',
+                        data: hourly.precipitation_probability,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                        borderWidth: 1,
+                        type: 'bar',
+                        yAxisID: 'yRight',
+                        borderRadius: 4
+                    }
+                ];
+            } else if (state.chartMode === 'wind') {
+                legendEl.innerHTML = `
+                    <span class="flex items-center gap-1.5 text-emerald-400"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> Vent moyen (${windSymbol})</span>
+                    <span class="flex items-center gap-1.5 text-amber-400"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Rafales (${windSymbol})</span>
+                `;
+                yLeftOptions.ticks.color = '#10b981';
+                yRightOptions.display = false;
+
+                datasets = [
+                    {
+                        label: `Vent moyen (${windSymbol})`,
+                        data: hourly.wind_speed_10m,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'yLeft',
+                        pointRadius: 3
+                    },
+                    {
+                        label: `Rafales (${windSymbol})`,
+                        data: hourly.wind_gusts_10m,
+                        borderColor: '#f59e0b',
+                        borderDash: [4, 4],
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'yLeft',
+                        pointRadius: 2
+                    }
+                ];
+            } else if (state.chartMode === 'hum') {
+                legendEl.innerHTML = `
+                    <span class="flex items-center gap-1.5 text-blue-400"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span> Humidité (%)</span>
+                    <span class="flex items-center gap-1.5 text-amber-400"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Indice UV</span>
+                `;
+                yLeftOptions.min = 0;
+                yLeftOptions.max = 100;
+                yLeftOptions.ticks.color = '#3b82f6';
+                yLeftOptions.ticks.callback = v => v + '%';
+
+                yRightOptions.min = 0;
+                yRightOptions.max = 12;
+                yRightOptions.ticks.color = '#f59e0b';
+
+                datasets = [
+                    {
+                        label: 'Humidité (%)',
+                        data: hourly.relative_humidity_2m,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'yLeft',
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Indice UV',
+                        data: hourly.uv_index,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.25)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'yRight',
+                        pointRadius: 3
+                    }
+                ];
             }
 
             hourlyChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: `Température (${tempSymbol})`,
-                            data: temps,
-                            borderColor: '#06b6d4',
-                            backgroundColor: 'rgba(6, 182, 212, 0.15)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4,
-                            yAxisID: 'yTemp',
-                            pointBackgroundColor: '#06b6d4',
-                            pointRadius: 3,
-                            pointHoverRadius: 6
-                        },
-                        {
-                            label: 'Risque de Pluie (%)',
-                            data: precipProb,
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.3)',
-                            borderWidth: 1,
-                            type: 'bar',
-                            yAxisID: 'yPrecip',
-                            borderRadius: 4
-                        }
-                    ]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -702,16 +1080,7 @@
                             bodyColor: '#e2e8f0',
                             borderColor: '#1e293b',
                             borderWidth: 1,
-                            padding: 10,
-                            displayColors: false,
-                            callbacks: {
-                                label: (context) => {
-                                    if (context.dataset.yAxisID === 'yTemp') {
-                                        return `Température : ${context.parsed.y}${tempSymbol}`;
-                                    }
-                                    return `Précipitations : ${context.parsed.y}%`;
-                                }
-                            }
+                            padding: 10
                         }
                     },
                     scales: {
@@ -719,20 +1088,8 @@
                             grid: { color: 'rgba(30, 41, 59, 0.5)' },
                             ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
                         },
-                        yTemp: {
-                            type: 'linear',
-                            position: 'left',
-                            grid: { color: 'rgba(30, 41, 59, 0.5)' },
-                            ticks: { color: '#06b6d4', font: { family: 'JetBrains Mono', size: 10 } }
-                        },
-                        yPrecip: {
-                            type: 'linear',
-                            position: 'right',
-                            min: 0,
-                            max: 100,
-                            grid: { drawOnChartArea: false },
-                            ticks: { color: '#3b82f6', font: { family: 'JetBrains Mono', size: 10 }, callback: v => v + '%' }
-                        }
+                        yLeft: yLeftOptions,
+                        yRight: yRightOptions
                     }
                 }
             });
@@ -743,18 +1100,17 @@
             const track = document.getElementById('hourly-track');
             track.innerHTML = '';
 
-            for (let i = 0; i < 24; i++) {
-                const date = new Date(hourly.time[i]);
-                const hourStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            for (let i = 0; i < hourly.time.length; i++) {
+                const hourStr = i === 0 ? "Maint." : hourly.time[i].slice(11, 16);
                 const temp = Math.round(hourly.temperature_2m[i]);
                 const code = hourly.weather_code[i];
                 const pop = hourly.precipitation_probability[i] || 0;
                 const icon = (weatherCodeMap[code] || { icon: "🌤️" }).icon;
 
                 const card = document.createElement('div');
-                card.className = "flex-shrink-0 w-20 bg-slate-950/70 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-3 text-center space-y-1.5 transition font-mono-tech snap-start";
+                card.className = `flex-shrink-0 w-20 ${i === 0 ? 'bg-cyan-950/40 border-cyan-500/60' : 'bg-slate-950/70 border-slate-800'} hover:border-cyan-500/50 border rounded-xl p-3 text-center space-y-1.5 transition font-mono-tech snap-start`;
                 card.innerHTML = `
-                    <div class="text-[11px] text-slate-400">${hourStr}</div>
+                    <div class="text-[11px] ${i === 0 ? 'text-cyan-300 font-bold' : 'text-slate-400'}">${hourStr}</div>
                     <div class="text-2xl my-1 select-none">${icon}</div>
                     <div class="text-sm font-bold text-slate-100">${temp}${tempSymbol}</div>
                     <div class="text-[10px] text-blue-400 flex items-center justify-center gap-0.5">
@@ -770,7 +1126,6 @@
             const container = document.getElementById('daily-forecast-container');
             container.innerHTML = '';
 
-            // Find absolute max/min for scaling visual temp bars
             const allMax = Math.max(...daily.temperature_2m_max);
             const allMin = Math.min(...daily.temperature_2m_min);
             const range = (allMax - allMin) || 1;
@@ -785,7 +1140,6 @@
                 const code = daily.weather_code[i];
                 const weather = weatherCodeMap[code] || { desc: "Variable", icon: "🌤️" };
 
-                // Calculate width & offset percentages for range bar
                 const leftPercent = Math.max(0, Math.min(100, ((minTemp - allMin) / range) * 100));
                 const widthPercent = Math.max(10, Math.min(100 - leftPercent, ((maxTemp - minTemp) / range) * 100));
 
@@ -799,7 +1153,7 @@
                     </div>
 
                     <!-- Weather Icon & Description -->
-                    <div class="flex items-center space-x-2 w-36 sm:w-48">
+                    <div class="flex items-center space-x-2 w-40 sm:w-52">
                         <span class="text-2xl">${weather.icon}</span>
                         <span class="text-xs text-slate-300 truncate">${weather.desc}</span>
                     </div>
@@ -821,6 +1175,7 @@
         function onSearchInput(query) {
             const clearBtn = document.getElementById('clear-search-btn');
             clearBtn.classList.toggle('hidden', !query.trim());
+            state.selectedAutocompleteIndex = -1;
 
             if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
 
@@ -831,14 +1186,15 @@
 
             searchDebounceTimeout = setTimeout(async () => {
                 try {
-                    const geoUrl = `httpsgeocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=fr&format=json`;
                     const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=fr&format=json`);
                     if (!res.ok) return;
                     const data = await res.json();
                     
                     if (data.results && data.results.length > 0) {
+                        state.lastAutocompleteResults = data.results;
                         displayAutocompleteResults(data.results);
                     } else {
+                        state.lastAutocompleteResults = [];
                         displayAutocompleteNoResults();
                     }
                 } catch (e) {
@@ -852,9 +1208,9 @@
             dropdown.innerHTML = '';
             dropdown.classList.remove('hidden');
 
-            results.forEach(place => {
+            results.forEach((place, idx) => {
                 const item = document.createElement('div');
-                item.className = "px-4 py-3 hover:bg-slate-800 cursor-pointer flex items-center justify-between font-mono-tech transition text-sm";
+                item.className = `autocomplete-item px-4 py-3 hover:bg-slate-800 cursor-pointer flex items-center justify-between font-mono-tech transition text-sm ${idx === state.selectedAutocompleteIndex ? 'bg-slate-800 border-l-2 border-cyan-400' : ''}`;
                 
                 const adminParts = [place.admin1, place.country].filter(Boolean).join(', ');
                 const flagEmoji = getCountryEmoji(place.country_code);
@@ -883,6 +1239,7 @@
 
         function hideAutocomplete() {
             document.getElementById('autocomplete-results').classList.add('hidden');
+            state.selectedAutocompleteIndex = -1;
         }
 
         function clearSearch() {
@@ -892,8 +1249,24 @@
         }
 
         function handleSearchKeydown(e) {
-            if (e.key === 'Enter') {
-                triggerSearchFromInput();
+            const results = state.lastAutocompleteResults;
+            const dropdown = document.getElementById('autocomplete-results');
+            const isOpen = !dropdown.classList.contains('hidden') && results.length > 0;
+
+            if (e.key === 'ArrowDown' && isOpen) {
+                e.preventDefault();
+                state.selectedAutocompleteIndex = (state.selectedAutocompleteIndex + 1) % results.length;
+                displayAutocompleteResults(results);
+            } else if (e.key === 'ArrowUp' && isOpen) {
+                e.preventDefault();
+                state.selectedAutocompleteIndex = (state.selectedAutocompleteIndex - 1 + results.length) % results.length;
+                displayAutocompleteResults(results);
+            } else if (e.key === 'Enter') {
+                if (isOpen && state.selectedAutocompleteIndex >= 0) {
+                    selectCity(results[state.selectedAutocompleteIndex]);
+                } else {
+                    triggerSearchFromInput();
+                }
             } else if (e.key === 'Escape') {
                 hideAutocomplete();
             }
@@ -925,7 +1298,8 @@
             state.lon = place.longitude;
 
             hideAutocomplete();
-            document.getElementById('search-input').value = `${place.name}, ${place.country || ''}`;
+            document.getElementById('search-input').value = `${place.name}${place.country ? ', ' + place.country : ''}`;
+            document.getElementById('clear-search-btn').classList.remove('hidden');
             
             fetchWeatherData(state.lat, state.lon);
         }
@@ -933,41 +1307,28 @@
         // Geolocation Logic
         function getUserLocation() {
             if (!navigator.geolocation) {
-                showToast("La géolocalisation n'est pas supportée par votre navigateur.", "error");
+                showToast("La géolocalisation n'est pas supportée.", "error");
                 return;
             }
 
             showToast("Détection GPS en cours...", "info");
 
             navigator.geolocation.getCurrentPosition(
-                async (pos) => {
+                (pos) => {
                     const lat = pos.coords.latitude;
                     const lon = pos.coords.longitude;
                     
                     state.lat = lat;
                     state.lon = lon;
-                    state.city = "Position Actuelle";
-                    state.admin = "GPS Localisé";
+                    state.city = "Position GPS";
+                    state.admin = `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
                     state.country = "";
                     state.countryCode = "GPS";
 
-                    // Reverse geocode attempt
-                    try {
-                        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${lat.toFixed(2)},${lon.toFixed(2)}&count=1&language=fr&format=json`);
-                        const data = await res.json();
-                        if (data.results && data.results[0]) {
-                            state.city = data.results[0].name;
-                            state.admin = data.results[0].admin1 || data.results[0].country || '';
-                            state.countryCode = data.results[0].country_code ? data.results[0].country_code.toUpperCase() : 'GPS';
-                        }
-                    } catch (e) {
-                        // fallback to standard name
-                    }
-
                     fetchWeatherData(lat, lon);
                 },
-                (err) => {
-                    showToast("Impossible d'obtenir votre position GPS.", "error");
+                () => {
+                    showToast("Accès GPS refusé ou indisponible.", "error");
                 }
             );
         }
@@ -978,11 +1339,11 @@
             state.unit = unit;
 
             document.getElementById('unit-c').className = unit === 'metric' 
-                ? "px-2.5 py-1 rounded text-cyan-400 bg-slate-800 font-bold transition" 
-                : "px-2.5 py-1 rounded text-slate-400 hover:text-white transition";
+                ? "px-2.5 py-1 rounded text-cyan-400 bg-slate-800 font-bold transition cursor-pointer" 
+                : "px-2.5 py-1 rounded text-slate-400 hover:text-white transition cursor-pointer";
             document.getElementById('unit-f').className = unit === 'imperial' 
-                ? "px-2.5 py-1 rounded text-cyan-400 bg-slate-800 font-bold transition" 
-                : "px-2.5 py-1 rounded text-slate-400 hover:text-white transition";
+                ? "px-2.5 py-1 rounded text-cyan-400 bg-slate-800 font-bold transition cursor-pointer" 
+                : "px-2.5 py-1 rounded text-slate-400 hover:text-white transition cursor-pointer";
 
             fetchWeatherData(state.lat, state.lon);
         }
@@ -997,13 +1358,13 @@
                 chip.className = "flex items-center space-x-1 bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-slate-300 hover:text-white px-2.5 py-1 rounded-md transition cursor-pointer";
                 chip.innerHTML = `
                     <span onclick="searchFavorite('${favName}')">${favName}</span>
-                    <button onclick="removeFavorite(event, '${favName}')" class="text-slate-500 hover:text-rose-400 ml-1">✕</button>
+                    <button onclick="removeFavorite(event, '${favName}')" class="text-slate-500 hover:text-rose-400 ml-1 cursor-pointer">✕</button>
                 `;
                 container.appendChild(chip);
             });
         }
 
-        async function searchFavorite(name) {
+        function searchFavorite(name) {
             document.getElementById('search-input').value = name;
             triggerSearchFromInput();
         }
@@ -1038,19 +1399,22 @@
                 : `<span>+ Épingler cette ville</span>`;
         }
 
-        // Helper Utilities
-        function calculateDewPoint(T, RH) {
+        // Helper Utilities (Magnus-Tetens formula with °F support)
+        function calculateDewPoint(temp, rh, unit = 'metric') {
+            const tempC = unit === 'imperial' ? (temp - 32) * 5 / 9 : temp;
             const a = 17.27;
             const b = 237.7;
-            const alpha = ((a * T) / (b + T)) + Math.log(RH / 100.0);
-            return (b * alpha) / (a - alpha);
+            const safeRh = Math.max(1, rh);
+            const alpha = ((a * tempC) / (b + tempC)) + Math.log(safeRh / 100.0);
+            const dewC = (b * alpha) / (a - alpha);
+            return unit === 'imperial' ? (dewC * 9 / 5) + 32 : dewC;
         }
 
         function getHumidityStatus(rh) {
             if (rh < 30) return "Air Sec";
-            if (rh <= 60) return "Optimal & Confortable";
-            if (rh <= 80) return "Humidité Élevée";
-            return "Trés Humide";
+            if (rh <= 60) return "Confortable";
+            if (rh <= 80) return "Humide";
+            return "Très Humide";
         }
 
         function getUvStatus(uv) {
@@ -1061,6 +1425,15 @@
             return "Extrême";
         }
 
+        function getAqiStatus(aqi) {
+            if (aqi === null || aqi === undefined) return { label: "Indisponible", colorClass: "text-slate-400" };
+            if (aqi <= 20) return { label: "Bon", colorClass: "text-emerald-400" };
+            if (aqi <= 40) return { label: "Correct", colorClass: "text-teal-400" };
+            if (aqi <= 60) return { label: "Modéré", colorClass: "text-amber-400" };
+            if (aqi <= 80) return { label: "Médiocre", colorClass: "text-orange-400" };
+            return { label: "Mauvais", colorClass: "text-rose-400" };
+        }
+
         function getWindDirectionText(degree) {
             const directions = ['Nord', 'N-Est', 'Est', 'S-Est', 'Sud', 'S-Ouest', 'Ouest', 'N-Ouest'];
             return directions[Math.round(degree / 45) % 8];
@@ -1068,12 +1441,11 @@
 
         function formatTimeString(isoString) {
             if (!isoString) return "--:--";
-            const d = new Date(isoString);
-            return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            return isoString.slice(11, 16);
         }
 
         function getCountryEmoji(countryCode) {
-            if (!countryCode) return "🌐";
+            if (!countryCode || countryCode.length !== 2) return "🌐";
             const codePoints = countryCode
                 .toUpperCase()
                 .split('')
@@ -1091,10 +1463,14 @@
         }
 
         function copyCurrentApiUrl() {
-            if (state.currentApiUrl) {
-                navigator.clipboard.writeText(state.currentApiUrl);
-                showToast("URL de l'API copiée dans le presse-papier !", "success");
-            }
+            if (!state.currentApiUrl) return;
+            const textarea = document.createElement('textarea');
+            textarea.value = state.currentApiUrl;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast("URL de l'API copiée !", "success");
         }
 
         // Custom Toast Notification system
@@ -1108,7 +1484,7 @@
                 error: 'border-rose-500 text-rose-300'
             };
 
-            toast.className = `tech-card px-4 py-2.5 rounded-lg border-l-4 ${borderColors[type]} font-mono-tech text-xs shadow-xl flex items-center space-x-2 animate-bounce pointer-events-auto`;
+            toast.className = `tech-card px-4 py-2.5 rounded-lg border-l-4 ${borderColors[type]} font-mono-tech text-xs shadow-xl flex items-center space-x-2 pointer-events-auto`;
             toast.innerHTML = `
                 <span>${type === 'success' ? '✓' : type === 'error' ? '⚠️' : 'ℹ️'}</span>
                 <span>${message}</span>
@@ -1124,7 +1500,7 @@
 
         // Close Autocomplete on outside click
         document.addEventListener('click', (e) => {
-            const searchContainer = document.querySelector('section.relative');
+            const searchContainer = document.getElementById('search-section');
             if (searchContainer && !searchContainer.contains(e.target)) {
                 hideAutocomplete();
             }
